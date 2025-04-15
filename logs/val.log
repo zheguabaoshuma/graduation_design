@@ -1,0 +1,8 @@
+25-03-12 15:32:56.817 - INFO: <epoch: 25, iter:   2,000 Evaluation.>
+25-03-12 15:39:32.684 - INFO: <epoch: 50, iter:   4,000 Evaluation.>
+25-03-12 15:46:08.251 - INFO: <epoch: 75, iter:   6,000 Evaluation.>
+25-03-12 15:52:43.938 - INFO: <epoch:100, iter:   8,000 Evaluation.>
+25-03-12 15:59:19.689 - INFO: <epoch:125, iter:  10,000 Evaluation.>
+25-03-12 16:05:55.448 - INFO: <epoch:150, iter:  12,000 Evaluation.>
+25-03-12 16:12:31.154 - INFO: <epoch:175, iter:  14,000 Evaluation.>
+25-03-12 16:19:06.970 - INFO: <epoch:200, iter:  16,000 Evaluation.>
