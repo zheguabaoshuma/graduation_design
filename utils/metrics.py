@@ -3,8 +3,10 @@ import math
 import numpy as np
 import cv2
 import PIL as Image
+import torch
 from torchvision.utils import make_grid
-
+from torchmetrics.image import VisualInformationFidelity, SpatialCorrelationCoefficient
+import torch.nn.functional as F
 
 def tensor2img(tensor, out_type=np.uint8, min_max=(-1, 1)):
     '''
@@ -34,6 +36,21 @@ def tensor2img(tensor, out_type=np.uint8, min_max=(-1, 1)):
         img_np = (img_np * 255.0).round()
         # Important. Unlike matlab, numpy.unit8() WILL NOT round by default.
     return img_np.astype(out_type)
+
+
+def grad(img):
+    sobel_x = torch.tensor([[-1, 0, 1],
+                            [-2, 0, 2],
+                            [-1, 0, 1]], dtype=torch.float32).view(1, 1, 3, 3)
+    sobel_y = torch.tensor([[-1, -2, -1],
+                            [0, 0, 0],
+                            [1, 2, 1]], dtype=torch.float32).view(1, 1, 3, 3)
+    grad_x = F.conv2d(img, sobel_x, padding=1)
+    grad_y = F.conv2d(img, sobel_y, padding=1)
+    magnitude = torch.sqrt(grad_x ** 2 + grad_y ** 2)
+    direction = torch.atan2(grad_y, grad_x)
+
+    return grad_x, grad_y, magnitude, direction
 
 
 import cv2
@@ -107,3 +124,77 @@ def calculate_ssim(img1, img2):
             return ssim(np.squeeze(img1), np.squeeze(img2))
     else:
         raise ValueError('Wrong input image dimensions.')
+
+def calculate_mi(img1, img2):
+    if not img1.shape == img2.shape:
+        raise ValueError('Input images must have the same dimensions.')
+
+    hist_associate = torch.zeros(256,256).cuda()
+
+    for i in range(img1.shape[0]):
+        for j in range(img1.shape[1]):
+            hist_associate[int(img1[i,j]),int(img2[i,j])] += 1
+
+    hist_associate /= hist_associate.sum()
+
+    # Calculate MI
+    p1 = np.sum(hist_associate, axis=1)
+    p2 = np.sum(hist_associate, axis=0)
+
+    mi = 0
+    for i in range(256):
+        for j in range(256):
+            if hist_associate[i,j] > 0:
+                mi += hist_associate[i,j] * torch.log(hist_associate[i,j] / (p1[i] * p2[j]))
+
+    return mi.item()
+
+def calculate_vif(img1, img2):
+    if not img1.shape == img2.shape:
+        raise ValueError('Input images must have the same dimensions.')
+
+    # Convert images to float32
+    img1 = img1.astype(np.float32)
+    img2 = img2.astype(np.float32)
+
+    # Calculate VIF
+    vif = VisualInformationFidelity()
+    vif_score = vif(img1, img2).item()
+    return vif_score
+
+def calculate_qabf(img1, img2, img_fusion, p:int):
+    if not img1.shape == img2.shape:
+        raise ValueError('Input images must have the same dimensions.')
+    if not img1.shape == img_fusion.shape:
+        raise ValueError('Fusion image must have the same dimensions as input images.')
+
+    # Convert images to float32
+    img1 = img1.astype(np.float32)
+    img2 = img2.astype(np.float32)
+    img_fusion = img_fusion.astype(np.float32)
+
+    _, _, grad_mag1, _ = grad(img1)
+    _, _, grad_mag2, _ = grad(img2)
+    _, _, grad_magf, _ = grad(img_fusion)
+
+    qaf = (2 * grad_mag1 * grad_magf + 1e-6) / (grad_mag1 ** 2 + grad_magf ** 2 + 1e-6)
+    qbf = (2 * grad_mag2 * grad_magf + 1e-6) / (grad_mag2 ** 2 + grad_magf ** 2 + 1e-6)
+
+    wa = grad_mag1 ** p
+    wb = grad_mag2 ** p
+
+    qabf = (torch.sum(qaf * wa) + torch.sum(qbf * wb)) / (torch.sum(wa) + torch.sum(wb))
+    return qabf
+
+def calculate_scc(img1, img2):
+    if not img1.shape == img2.shape:
+        raise ValueError('Input images must have the same dimensions.')
+
+    # Convert images to float32
+    img1 = img1.astype(np.float32)
+    img2 = img2.astype(np.float32)
+
+    # Calculate VIF
+    scc = SpatialCorrelationCoefficient()
+    scc_score = scc(img1, img2)
+    return scc_score

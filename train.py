@@ -12,6 +12,8 @@ import numpy as np
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 # os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 if __name__ == "__main__":
+    current_path = os.getcwd();
+    print(current_path)
     with open('config/diff-if-mif.json', 'r') as f:
         opt = json.load(f)
     opt = Logger.dict_to_nonedict(opt)
