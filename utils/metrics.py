@@ -45,12 +45,12 @@ def grad(img):
     sobel_y = torch.tensor([[-1, -2, -1],
                             [0, 0, 0],
                             [1, 2, 1]], dtype=torch.float32).view(1, 1, 3, 3)
-    grad_x = F.conv2d(img, sobel_x, padding=1)
-    grad_y = F.conv2d(img, sobel_y, padding=1)
+    grad_x = F.conv2d(torch.tensor(img).unsqueeze(0), sobel_x, padding=1)
+    grad_y = F.conv2d(torch.tensor(img).unsqueeze(0), sobel_y, padding=1)
     magnitude = torch.sqrt(grad_x ** 2 + grad_y ** 2)
     direction = torch.atan2(grad_y, grad_x)
 
-    return grad_x, grad_y, magnitude, direction
+    return grad_x[0], grad_y[0], magnitude[0], direction[0]
 
 
 import cv2
@@ -129,7 +129,7 @@ def calculate_mi(img1, img2):
     if not img1.shape == img2.shape:
         raise ValueError('Input images must have the same dimensions.')
 
-    hist_associate = torch.zeros(256,256).cuda()
+    hist_associate = np.zeros((256,256), dtype=np.float32)
 
     for i in range(img1.shape[0]):
         for j in range(img1.shape[1]):
@@ -141,25 +141,25 @@ def calculate_mi(img1, img2):
     p1 = np.sum(hist_associate, axis=1)
     p2 = np.sum(hist_associate, axis=0)
 
-    mi = 0
+    mi = torch.tensor(0, dtype=torch.float32)
     for i in range(256):
         for j in range(256):
             if hist_associate[i,j] > 0:
-                mi += hist_associate[i,j] * torch.log(hist_associate[i,j] / (p1[i] * p2[j]))
+                mi += hist_associate[i,j] * np.log(hist_associate[i,j] / (p1[i] * p2[j]))
 
-    return mi.item()
+    return mi.numpy()
 
 def calculate_vif(img1, img2):
     if not img1.shape == img2.shape:
         raise ValueError('Input images must have the same dimensions.')
 
-    # Convert images to float32
-    img1 = img1.astype(np.float32)
-    img2 = img2.astype(np.float32)
+    # Convert images to NCWH float32 tensor
+    img1 = torch.tensor(img1.astype(np.float32)).unsqueeze(0).unsqueeze(0)
+    img2 = torch.tensor(img2.astype(np.float32)).unsqueeze(0).unsqueeze(0)
 
     # Calculate VIF
     vif = VisualInformationFidelity()
-    vif_score = vif(img1, img2).item()
+    vif_score = vif(img1, img2).numpy()
     return vif_score
 
 def calculate_qabf(img1, img2, img_fusion, p:int):
@@ -184,15 +184,15 @@ def calculate_qabf(img1, img2, img_fusion, p:int):
     wb = grad_mag2 ** p
 
     qabf = (torch.sum(qaf * wa) + torch.sum(qbf * wb)) / (torch.sum(wa) + torch.sum(wb))
-    return qabf
+    return qabf.numpy()
 
 def calculate_scc(img1, img2):
     if not img1.shape == img2.shape:
         raise ValueError('Input images must have the same dimensions.')
 
-    # Convert images to float32
-    img1 = img1.astype(np.float32)
-    img2 = img2.astype(np.float32)
+    # Convert images to NCWH float32 tensor
+    img1 = torch.tensor(img1.astype(np.float32)).unsqueeze(0).unsqueeze(0)
+    img2 = torch.tensor(img2.astype(np.float32)).unsqueeze(0).unsqueeze(0)
 
     # Calculate VIF
     scc = SpatialCorrelationCoefficient()

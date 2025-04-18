@@ -94,7 +94,7 @@ def define_G(opt):
         dropout=model_opt['unet_denoising']['dropout']
     )
 
-    model_refinement_fn = finetune_arch.WaveUIR_fn(
+    model_refinement_fn = finetune_arch.Restormer_fn(
         in_channel=model_opt['unet_refine']['in_channel'],
         out_channel=model_opt['unet_refine']['out_channel']
     )
